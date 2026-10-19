@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>Mapa GPS • Supervisor</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoY2GdGNDFwCZg=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <style>
+    /* Critical Leaflet layout fallback in case an external stylesheet is blocked.
+       Activated only when a stylesheet probe detects the base Leaflet CSS is missing. */
+    .leaflet-css-fallback .leaflet-container { position:relative;overflow:hidden;outline:none;cursor:grab; }
+    .leaflet-css-fallback .leaflet-pane,
+    .leaflet-css-fallback .leaflet-tile,
+    .leaflet-css-fallback .leaflet-marker-icon,
+    .leaflet-css-fallback .leaflet-marker-shadow,
+    .leaflet-css-fallback .leaflet-tile-container,
+    .leaflet-css-fallback .leaflet-pane > svg,
+    .leaflet-css-fallback .leaflet-pane > canvas,
+    .leaflet-css-fallback .leaflet-layer,
+    .leaflet-css-fallback .leaflet-image-layer {position:absolute;left:0;top:0;}
+    .leaflet-css-fallback .leaflet-container img,
+    .leaflet-css-fallback .leaflet-pane svg {max-width:none!important;max-height:none!important;}
+    .leaflet-css-fallback .leaflet-marker-icon,
+    .leaflet-css-fallback .leaflet-marker-shadow {display:block;}
+    .leaflet-css-fallback .leaflet-tile {visibility:hidden;user-select:none;}
+    .leaflet-css-fallback .leaflet-tile-loaded {visibility:visible;}
+    .leaflet-css-fallback .leaflet-zoom-animated {transform-origin:0 0;}
+    .leaflet-css-fallback .leaflet-pane > svg {pointer-events:none;}
+    .leaflet-css-fallback .leaflet-pane .leaflet-interactive {pointer-events:auto;cursor:pointer;}
+    .leaflet-css-fallback .leaflet-control-container .leaflet-top,
+    .leaflet-css-fallback .leaflet-control-container .leaflet-bottom {position:absolute;z-index:1000;pointer-events:none;}
+    .leaflet-css-fallback .leaflet-top {top:0;}
+    .leaflet-css-fallback .leaflet-bottom {bottom:0;}
+    .leaflet-css-fallback .leaflet-right {right:0;}
+    .leaflet-css-fallback .leaflet-left {left:0;}
+    .leaflet-css-fallback .leaflet-control {position:relative;z-index:800;pointer-events:auto;}
+    .leaflet-css-fallback .leaflet-top .leaflet-control {margin-top:10px;}
+    .leaflet-css-fallback .leaflet-right .leaflet-control {float:right;clear:both;margin-right:10px;}
+    .leaflet-css-fallback .leaflet-bottom .leaflet-control {margin-bottom:10px;}
+    .leaflet-css-fallback .leaflet-control-attribution {background:#fffe;font-size:10px;padding:2px 5px;}
+    .leaflet-css-fallback .leaflet-control-attribution a {color:#00609b;text-decoration:none;}
+    .leaflet-css-fallback .leaflet-control-zoom a {display:block;text-align:center;background:white;text-decoration:none;}
+    .leaflet-css-fallback .leaflet-popup {position:absolute;text-align:center;margin-bottom:20px;}
+    .leaflet-css-fallback .leaflet-popup-content-wrapper {padding:1px;text-align:left;background:white;color:#333;border-radius:12px;}
+    .leaflet-css-fallback .leaflet-popup-tip-container {width:40px;height:20px;position:absolute;left:50%;margin-left:-20px;overflow:hidden;pointer-events:none;}
+    .leaflet-css-fallback .leaflet-popup-tip {width:17px;height:17px;padding:1px;margin:-10px auto 0;background:white;transform:rotate(45deg);}
+    .leaflet-css-fallback .leaflet-popup-close-button {position:absolute;right:2px;top:2px;z-index:1;display:block;width:22px;height:22px;text-decoration:none;text-align:center;color:#555;}
+    .leaflet-css-fallback .leaflet-tooltip {position:absolute;padding:5px 8px;border-radius:4px;background:white;box-shadow:0 1px 6px #0002;font-size:12px;white-space:nowrap;}
+    .base-map-notice { position:absolute;z-index:1004;right:66px;top:20px;max-width:310px;padding:12px 14px;border-radius:10px;background:#fff4e9;color:#7c2d12;box-shadow:0 2px 14px #0003;font-size:12px;line-height:1.45; }
+    .base-map-notice[hidden] {display:none;}
+    :root { font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif; color:#152536; }
+    * { box-sizing:border-box; }
+    html,body,#map { width:100%;height:100%;margin:0; }
+    body { overflow:hidden; }
+    #map { background:#eef2f2; }
+    .leaflet-container { font:inherit; }
+    .leaflet-control-attribution { font-size:10px!important; }
+    .leaflet-top.leaflet-right { margin-top:14px;margin-right:12px; }
+    .leaflet-control-zoom { border:none!important; border-radius:11px;overflow:hidden;box-shadow:0 2px 12px #0002!important; }
+    .leaflet-control-zoom a { width:34px!important;height:34px!important;line-height:34px!important;color:#132c42!important; }
+
+    .route-summary { display:none; position:absolute; z-index:1001; top:17px;left:18px; max-width:min(540px,calc(100% - 96px)); min-width:330px; align-items:center;justify-content:space-between;gap:20px;padding:15px 18px;background:#101a25; color:#fff;box-shadow:0 3px 20px #0003;border:1px solid #344250;border-radius:14px;pointer-events:none; }
+    .route-summary .title { font-size:17px;line-height:1.35;font-weight:720;letter-spacing:-.25px; }
+    .route-summary .subtitle { margin-top:4px;font-size:12px;color:#d0d9e4; }
+    .route-summary .tag { white-space:nowrap;font-size:11px;font-weight:600;background:#273341;padding:6px 9px;border-radius:25px;color:#e4e9f0; }
+    .has-route .route-summary { display:flex; }
+    .map-legend { display:none;position:absolute;bottom:31px;left:50%;transform:translateX(-50%);z-index:1000; align-items:center; justify-content:center; flex-wrap:wrap; gap:10px 15px; padding:9px 13px; border-radius:12px;background:#101a25;color:#edf3fa;box-shadow:0 3px 16px #0003;font-size:12px;max-width:calc(100% - 16px);pointer-events:none; }
+    .has-route .map-legend { display:flex; }
+    .legend-item {display:flex;align-items:center;gap:7px}
+    .legend-item[hidden] {display:none!important;}
+    .legend-dot { display:inline-block;width:9px;height:9px;border-radius:100%;border:1.5px solid #fff; }
+    .legend-dot.fix {background:#22272d;}
+    .legend-time {display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;flex-shrink:0;border:2px solid #f4b84a;background:#18283a;color:#fff;border-radius:50%;font-size:10px;font-weight:800;line-height:1;}
+    .legend-line {width:20px;border-top:4px solid #1767d4;border-radius:9px;}
+    .legend-direction {color:#fff;font-size:20px;font-weight:900;line-height:12px;transform:rotate(-8deg);}
+
+    /* A milestone is a recorded GPS position near a reference time, not a trip endpoint. */
+    .time-reference {display:flex;align-items:center;justify-content:center;width:29px;height:29px;border-radius:50%;border:3px solid #f4b84a;background:#18283a;color:white;font-size:11px;font-weight:800;line-height:1;box-shadow:0 2px 9px #0007,0 0 0 1px #fff;user-select:none;}
+    /* Force both kinds of GPS information above all route, arrow and position panes.
+       The time on hover is a Leaflet tooltip, not the click popup. */
+    #map .leaflet-tooltip-pane { z-index:1500!important; pointer-events:none; }
+    #map .leaflet-popup-pane { z-index:1600!important; }
+    #map .gps-time-tooltip.leaflet-tooltip {
+      background:#fff!important;color:#12263a!important;
+      padding:5px 9px;border:1px solid #cbd5e1;border-radius:7px;
+      box-shadow:0 4px 16px #0004;font-size:12px;font-weight:700;
+      line-height:1.25;white-space:nowrap;
+    }
+    /* Keep the tooltip readable when it opens near dense clusters of points. */
+    #map .gps-time-tooltip.leaflet-tooltip::before { border-top-color:#fff; }
+
+    .leaflet-popup-content-wrapper {border-radius:13px!important;box-shadow:0 8px 30px #13273836!important;}
+    .leaflet-popup-content {margin:15px 16px!important;width:220px!important;}
+    .popup-heading {font-size:23px;font-weight:760;letter-spacing:-.5px;color:#12263a;line-height:1.15;}
+    .popup-subheading {margin:5px 0 11px;color:#53677b;font-size:12px;}
+    .popup-location {padding:10px 0;border-top:1px solid #e2e8ef;font-size:12px;line-height:1.65;color:#34495e;}
+    .popup-location code {font-family:ui-monospace,Consolas,monospace;color:#152536;font-size:11px;}
+    .popup-link {display:block;color:#1465c3;text-decoration:none;font-weight:650;font-size:12px;margin-top:8px;}
+    .popup-link:hover{text-decoration:underline;}
+
+    .importer {position:absolute;z-index:1003;top:50%;left:50%;transform:translate(-50%,-50%);background:#101a25;color:white;border-radius:19px;padding:26px;width:min(435px,calc(100% - 28px));box-shadow:0 18px 55px #0005; }
+    .importer h1 {font-size:22px;letter-spacing:-.55px;margin:0 0 7px;}
+    .importer .explain {line-height:1.55;font-size:13px;color:#c4cfda;margin:0 0 17px;}
+    .importer label {display:block;font-size:12px;font-weight:650;margin:14px 0 7px;color:#e4ebf2;}
+    .importer input,.importer select {width:100%;border:1px solid #45566a;border-radius:9px;background:#1f303f;color:white;font:inherit;font-size:13px;padding:10px 12px; }
+    .importer input[type=file] {padding:8px;min-height:42px;}
+    .importer input[type=file]::file-selector-button {border:0;border-radius:6px;padding:7px;background:#edf4ff;color:#183b6b;font-weight:650;margin-right:10px;}
+    .importer button {width:100%;height:43px;border:0;border-radius:9px;background:#1767d4;color:white;font:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:14px;}
+    .importer button:disabled {cursor:not-allowed;background:#3e526b;color:#93a6be;}
+    .status-msg {font-size:12px;line-height:1.5;color:#a3d9af;margin-top:10px;}
+    .status-msg.error {color:#ffb5b5;}
+    .importer .fineprint {margin:13px 0 0;font-size:11px;line-height:1.5;color:#adbdcd;}
+    .importer .download-hint {font-size:11px;color:#c9d5e5;margin:9px 0 0;}
+    body.viewer-mode .importer {display:none;}
+    body.editor-preview .importer {top:auto;bottom:18px;left:18px;transform:none;padding:14px;width:280px;border-radius:13px;max-height:min(80vh,650px);overflow-y:auto;}
+    body.editor-preview .importer h1 {font-size:14px;}
+    body.editor-preview .importer .explain, body.editor-preview .importer .fineprint {display:none;}
+    body.editor-preview .importer label {margin:8px 0 4px;}
+    body.editor-preview .importer input,body.editor-preview .importer select {padding:6px 8px;}
+    body.editor-preview .importer button {margin-top:9px;height:35px;}
+    body.editor-preview .map-legend {bottom:18px;left:auto;right:18px;transform:none;}
+
+    .fatal {display:none;position:absolute;top:0;left:0;bottom:0;right:0;z-index:2000;align-items:center;justify-content:center;padding:20px;background:#eff3f7;}
+    .fatal > div {max-width:450px;background:white;box-shadow:0 4px 24px #0002;border-radius:14px;padding:30px;line-height:1.6;}
+    .fatal h2 {margin-top:0;}
+    body.missing-leaflet .fatal {display:flex;}
+    @media(max-width:700px) {
+      .route-summary {top:9px;left:9px;max-width:calc(100% - 76px);min-width:0;padding:11px 12px;gap:9px;}
+      .route-summary .title {font-size:14px;}
+      .route-summary .subtitle {font-size:11px;}
+      .route-summary .tag {display:none;}
+      .map-legend {bottom:28px;gap:10px;font-size:10px;padding:10px;}
+      body.editor-preview .importer {left:8px;bottom:76px;width:min(280px,calc(100% - 16px));}
+      body.editor-preview .map-legend {bottom:12px;left:50%;right:auto;transform:translateX(-50%);}
+      .leaflet-top.leaflet-right {margin-top:9px;margin-right:7px;}
+    }
+    @media(max-width:370px) { .legend-direction,.legend-item.direction {display:none;} .map-legend {gap:7px;} }
+
+    /* The popup/tooltip remains above every route and replay layer. */
+    .leaflet-tooltip-pane { z-index:1500!important; }
+    .leaflet-popup-pane { z-index:1600!important; }
+    .route-summary .header-actions {display:flex;align-items:center;gap:10px;}
+    .viewer-day-wrap {display:none;align-items:center;gap:8px;color:#d4e0ea;font-size:11px;font-weight:600;pointer-events:auto;}
+    body.viewer-mode .viewer-day-wrap {display:flex;}
+    body.viewer-mode .route-summary .tag {display:none;}
+    #viewer-day-select {max-width:140px;min-width:123px;padding:7px 10px;border-radius:8px;border:1px solid #46596c;background:#253545;color:white;font:600 12px system-ui;cursor:pointer;}
+    #viewer-day-select:focus-visible,.replay-controls button:focus-visible,.replay-controls input:focus-visible,.replay-controls select:focus-visible {outline:2px solid #93c5fd;outline-offset:2px;}
+    .replay-controls {display:none;position:absolute;z-index:1003;bottom:68px;left:50%;transform:translateX(-50%);width:min(535px,calc(100% - 34px));background:#101a25;color:white;padding:13px 16px 11px;border:1px solid #354658;border-radius:15px;box-shadow:0 4px 20px #0004;}
+    body.has-route .replay-controls {display:block;}
+    .replay-heading {display:flex;align-items:center;justify-content:space-between;gap:14px;}
+    .replay-label {font-weight:650;font-size:13px;display:flex;gap:10px;align-items:baseline;white-space:nowrap;}
+    #replay-time {font-size:18px;font-weight:750;letter-spacing:.2px;font-variant-numeric:tabular-nums;}
+    .replay-count {font-size:11px;color:#acbbc9;font-weight:400;}
+    .replay-speed-label {display:flex;gap:7px;align-items:center;font-size:11px;color:#c7d1df;white-space:nowrap;}
+    #replay-speed {background:#263646;border:1px solid #465668;border-radius:8px;color:white;padding:5px 7px;font:600 12px system-ui;}
+    .replay-range {display:block;width:100%;margin:13px 0 5px;accent-color:#7db5ff;cursor:pointer;height:16px;}
+    .replay-bottom {display:flex;align-items:center;justify-content:space-between;gap:10px;}
+    .replay-bound {color:#b7c4d5;font-size:11px;font-variant-numeric:tabular-nums;min-width:55px;}
+    #replay-to {text-align:right;}
+    .replay-actions {display:flex;align-items:center;gap:8px;}
+    .replay-actions button {cursor:pointer;border:1px solid #43556a;background:#253646;color:#eef4fc;border-radius:8px;height:31px;min-width:37px;font:600 14px system-ui;}
+    .replay-actions button:disabled {opacity:.45;cursor:default;}
+    .replay-actions .replay-toggle {background:#1767d4;border-color:#367ae0;padding:0 17px;min-width:77px;font-size:12px;}
+    .replay-current-ring {pointer-events:auto;}
+    .viewer-status {position:absolute;z-index:1005;top:111px;left:18px;max-width:min(465px,calc(100% - 90px));background:#fff7e9;color:#854d0e;padding:8px 12px;border-radius:10px;box-shadow:0 2px 12px #0002;font-size:12px;line-height:1.4;}
+    .viewer-status[hidden]{display:none;}
+    @media(max-width:700px) {
+      .route-summary {align-items:flex-start;min-width:0;max-width:calc(100% - 75px);gap:8px;}
+      .route-summary .header-actions {gap:4px;}
+      .viewer-day-wrap {flex-direction:column;align-items:flex-start;gap:3px;}
+      #viewer-day-select {min-width:106px;max-width:122px;padding:5px 6px;font-size:11px;}
+      .replay-controls {bottom:64px;width:calc(100% - 16px);padding:10px 13px;}
+      .replay-label {gap:6px;font-size:12px;}
+      #replay-time {font-size:16px;}
+      .replay-count {font-size:10px;}
+      .map-legend {bottom:12px!important;max-width:calc(100% - 16px);overflow:hidden;gap:9px;justify-content:center;padding:9px 11px;}
+      .map-legend .legend-item {font-size:0;gap:4px;}
+      .map-legend .legend-time {font-size:10px;}
+      .map-legend .legend-direction {font-size:17px;}
+      .viewer-status {top:92px;left:9px;}
+      body.editor-preview .replay-controls {bottom:153px;left:auto;right:8px;transform:none;width:min(300px,calc(100% - 16px));}
+    }
+    @media(min-width:701px) {
+      body.editor-preview .replay-controls {width:min(500px,calc(100% - 340px));bottom:71px;left:54%;}
+    }
+
+    /* v8: Supervisor/date and Replay share one compact upper-left panel. */
+    .map-control-stack {
+      display:none;
+      position:absolute;
+      z-index:1003;
+      top:17px;
+      left:18px;
+      width:min(472px, calc(100% - 94px));
+      border:1px solid #344658;
+      border-radius:14px;
+      background:#101a25;
+      color:#fff;
+      box-shadow:0 4px 20px #0003;
+      overflow:hidden;
+    }
+    body.has-route .map-control-stack {display:block;}
+    .map-control-stack .route-summary {
+      display:flex;
+      position:relative;
+      top:auto;left:auto;
+      width:100%;min-width:0;max-width:none;
+      gap:12px;
+      padding:14px 17px;
+      align-items:center;
+      justify-content:space-between;
+      pointer-events:auto;
+      background:transparent;
+      border:0;
+      border-radius:0;
+      box-shadow:none;
+    }
+    .map-control-stack .route-summary .title {font-size:16px;}
+    .map-control-stack .route-summary .subtitle {font-size:11px;}
+    .map-control-stack .replay-controls {
+      display:block;
+      position:relative;
+      top:auto;right:auto;bottom:auto;left:auto;
+      transform:none;
+      width:100%;max-width:none;
+      margin:0;
+      padding:12px 17px 13px;
+      border:0;
+      border-top:1px solid #334559;
+      border-radius:0;
+      background:transparent;
+      box-shadow:none;
+    }
+    /* The importer preview previously placed Replay at the map bottom. */
+    body.editor-preview .map-control-stack .replay-controls {
+      position:relative;top:auto;right:auto;bottom:auto;left:auto;
+      transform:none;width:100%;
+    }
+    .map-control-stack .replay-heading {flex-wrap:wrap;gap:6px 12px;}
+    .map-control-stack .replay-label {gap:7px;}
+    .map-control-stack .replay-range {margin:11px 0 4px;}
+    .map-control-stack .replay-bottom {gap:6px;}
+    .map-control-stack .replay-actions {gap:5px;}
+    .map-control-stack .replay-actions .replay-toggle {min-width:88px;padding:0 11px;}
+    .viewer-status {top:240px;}
+    @media (max-width:700px) {
+      .map-control-stack {top:9px;left:9px;width:calc(100% - 78px);}
+      .map-control-stack .route-summary {padding:11px 12px;flex-wrap:wrap;gap:7px;}
+      .map-control-stack .route-summary .title {font-size:14px;}
+      .map-control-stack .route-summary .subtitle {font-size:10px;}
+      .map-control-stack .replay-controls {padding:10px 12px 11px;}
+      .map-control-stack .viewer-day-wrap {flex-direction:row;align-items:center;gap:5px;}
+      .map-control-stack .replay-label {white-space:normal;flex-wrap:wrap;gap:5px;font-size:11px;}
+      .map-control-stack #replay-time {font-size:15px;}
+      .map-control-stack .replay-count {font-size:10px;}
+      .map-control-stack .replay-speed-label {font-size:10px;}
+      .map-control-stack .replay-bound {min-width:0;font-size:10px;}
+      .map-control-stack .replay-actions button {min-width:29px;height:29px;}
+      .map-control-stack .replay-actions .replay-toggle {min-width:76px;padding:0 7px;font-size:11px;}
+      .viewer-status {top:225px;left:9px;}
+    }
+    @media(max-width:390px) {
+      .map-control-stack .route-summary .header-actions {width:100%;}
+      .map-control-stack .replay-bottom {gap:3px;}
+      .map-control-stack .replay-actions {gap:3px;}
+      .map-control-stack .replay-actions button {min-width:26px;}
+      .map-control-stack .replay-actions .replay-toggle {min-width:73px;padding:0 5px;}
+    }
+
+    /* v9: Traccar-width controls with a vertically aligned lower-left legend. */
+    .map-control-stack { width:min(404px,calc(100% - 94px)); }
+    .map-control-stack .route-summary { padding:13px 14px;gap:8px; }
+    .map-control-stack .route-summary .title {font-size:15px;}
+    .map-control-stack #viewer-day-select {min-width:106px;max-width:112px;padding:6px 7px;}
+    .map-legend {
+      left:18px;right:auto;bottom:20px;
+      transform:none;
+      width:min(404px,calc(100% - 36px));
+      max-width:none;
+      justify-content:flex-start;
+      gap:8px 13px;
+    }
+    /* Keep the upload panel usable in the CSV generator's preview state. */
+    body.editor-preview .map-legend {
+      left:auto;right:18px;bottom:18px;
+      width:auto;max-width:calc(100% - 36px);
+    }
+    @media(max-width:700px) {
+      .map-control-stack {width:min(404px,calc(100% - 78px));}
+      .map-control-stack .route-summary {padding:11px 12px;}
+      .map-legend {
+        left:9px;right:auto;bottom:12px!important;
+        transform:none;
+        width:min(404px,calc(100% - 18px));
+        max-width:calc(100% - 18px);
+      }
+      body.editor-preview .map-legend {
+        left:auto;right:9px;bottom:12px!important;
+        width:auto;max-width:calc(100% - 18px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="map" aria-label="Mapa interativo do trajeto GPS"></div>
+  <aside class="map-control-stack" aria-label="Supervisor e reprodução">
+  <header class="route-summary" aria-live="polite">
+    <div>
+      <div class="title" id="route-title">Supervisor X</div>
+      <div class="subtitle" id="route-subtitle"></div>
+    </div>
+    <div class="header-actions">
+      <label class="viewer-day-wrap" for="viewer-day-select"><span>Dia</span><select id="viewer-day-select" aria-label="Selecionar dia do GPS"></select></label>
+      <div class="tag">Rota histórica</div>
+    </div>
+  </header>
+  <section class="replay-controls" aria-label="Reprodução do trajeto GPS">
+    <div class="replay-heading">
+      <span class="replay-label">Reprodução <strong id="replay-time">--:--:--</strong><span class="replay-count" id="replay-count"></span></span>
+      <label class="replay-speed-label" for="replay-speed">Velocidade
+        <select id="replay-speed" aria-label="Velocidade da reprodução">
+          <option value="0.5">0,5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+    </div>
+    <input id="replay-range" class="replay-range" type="range" min="0" max="0" step="1" value="0" aria-label="Linha do tempo do GPS">
+    <div class="replay-bottom">
+      <span id="replay-from" class="replay-bound">--:--</span>
+      <div class="replay-actions">
+        <button id="replay-previous" class="replay-step" type="button" title="Posição GPS anterior" aria-label="Posição GPS anterior">‹</button>
+        <button id="replay-toggle" class="replay-toggle" type="button" title="Reproduzir trajeto GPS" aria-label="Reproduzir trajeto GPS">Reproduzir</button>
+        <button id="replay-next" class="replay-step" type="button" title="Próxima posição GPS" aria-label="Próxima posição GPS">›</button>
+      </div>
+      <span id="replay-to" class="replay-bound">--:--</span>
+    </div>
+  </section>
+  </aside>
+  <section class="importer" id="importer" aria-label="Criar mapa compartilhável do supervisor">
+    <h1>Mapa GPS do Supervisor</h1>
+    <p class="explain">Importe um CSV de posições do Traccar, visualize o trajeto e baixe um mapa HTML para compartilhar. Não é necessário ter conta ou servidor para gerar o arquivo.</p>
+    <label for="file-input">CSV de posições do Traccar</label>
+    <input id="file-input" type="file" accept=".csv,text/csv">
+    <label for="alias-input">Identificação pública (sem nomes reais)</label>
+    <input id="alias-input" type="text" value="Supervisor X" placeholder="Supervisor X" maxlength="24" spellcheck="false">
+    <div id="date-field" hidden>
+      <label for="date-select">Data do GPS (São Paulo)</label>
+      <select id="date-select"></select>
+    </div>
+    <button id="download-btn" type="button" disabled>Baixar mapa para compartilhar</button>
+    <div class="download-hint" id="download-hint" hidden>O HTML gerado contém apenas posições e horários do GPS. Publique o arquivo em um site estático para criar um link.</div>
+    <div class="status-msg" id="import-status" aria-live="polite"></div>
+    <p class="fineprint">O CSV permanece no navegador. O mapa não inclui IDs de dispositivos, nomes reais nem informações de bateria. As coordenadas ainda podem revelar locais visitados.</p>
+  </section>
+  <div class="map-legend" aria-label="Legenda do mapa">
+    <span class="legend-item" data-reference-hour="8"><span class="legend-time">08</span>08:00</span>
+    <span class="legend-item" data-reference-hour="13"><span class="legend-time">13</span>13:00</span>
+    <span class="legend-item" data-reference-hour="17"><span class="legend-time">17</span>17:00</span>
+    <span class="legend-item"><span class="legend-dot fix"></span>Posição GPS</span>
+    <span class="legend-item direction"><span class="legend-direction">➜</span>Sentido</span>
+    <span class="legend-item"><span class="legend-line"></span>Rota</span>
+  </div>
+  <div id="viewer-status" class="viewer-status" role="status" hidden></div>
+  <div id="base-map-notice" class="base-map-notice" role="status" hidden></div>
+  <div class="fatal" role="alert"><div><h2>Biblioteca do mapa indisponível</h2><p>Não foi possível carregar o Leaflet. Verifique sua conexão e recarregue a página. O mapa usa dados online, mesmo quando o HTML está salvo no computador.</p></div></div>
+  <script id="route-payload" data-root="data/" type="application/json">{"__HOSTED_VIEWER__": true, "alias": "Supervisor X"}</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
+  <script>
+  (() => {
+    'use strict';
+    const TZ = 'America/Sao_Paulo';
+    const loadedPayload = document.getElementById('route-payload').textContent.trim();
+    const embedded = JSON.parse(loadedPayload);
+    const isViewer = !!(embedded && (Array.isArray(embedded.positions) || embedded.__HOSTED_VIEWER__));
+    const DATA_ROOT = document.getElementById('route-payload').dataset.root || '../data/';
+    const el = (id) => document.getElementById(id);
+    const fmtDay = new Intl.DateTimeFormat('pt-BR', {timeZone:TZ,day:'2-digit',month:'2-digit',year:'numeric'});
+    const fmtTime = new Intl.DateTimeFormat('pt-BR', {timeZone:TZ,hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+    const dateParts = new Intl.DateTimeFormat('en-US', {timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'});
+    const initialHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    const REFERENCE_HOURS=[8,13,17];
+    const MAX_REFERENCE_GAP_SECONDS=30*60;
+    let map=null, line=null, dotLayer=null, arrowLayer=null, referenceLayer=null;
+    let current=null, csvRows=[], days=[], template=initialHtml;
+    let replayMarker=null, replayIndex=0, replayTimer=null, viewerFetchSeq=0;
+    const loadedDays=new Map();
+
+    function localDay(ms) {
+      const obj={};dateParts.formatToParts(new Date(ms)).forEach(p=>{if(p.type!=='literal')obj[p.type]=p.value;});
+      return `${obj.year}-${obj.month}-${obj.day}`;
+    }
+    function localDateLabel(dateStr) {
+      const [y,m,d]=dateStr.split('-');return `${d}/${m}/${y}`;
+    }
+    function parseGpsUtc(source) {
+      if(source===undefined || source===null)return NaN;
+      let v=String(source).trim();
+      if(!v)return NaN;
+      v=v.replace(' ','T');
+      if(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?$/.test(v))v+='Z';
+      const ms=Date.parse(v);
+      return Number.isFinite(ms)?ms:NaN;
+    }
+    function csvToRecords(text) {
+      if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
+      // RFC 4180 compatible parser, including quoted separators and escaped quotes.
+      const rows=[];let cell='',row=[],quoted=false;
+      for(let i=0;i<text.length;i++) {
+        const ch=text[i];
+        if(ch==='"') {
+          if(quoted && text[i+1]==='"'){cell+='"';i++;}
+          else quoted=!quoted;
+        } else if(ch===','&&!quoted){row.push(cell);cell='';}
+        else if((ch==='\n'||ch==='\r')&&!quoted) {
+          if(ch==='\r'&&text[i+1]==='\n')i++;
+          row.push(cell); if(row.some(x=>x.trim()!==''))rows.push(row); row=[];cell='';
+        } else cell+=ch;
+      }
+      row.push(cell);if(row.some(x=>x.trim()!==''))rows.push(row);
+      if(quoted)throw new Error('O CSV contém um campo entre aspas não finalizado.');
+      if(rows.length<2)throw new Error('Nenhuma posição GPS encontrada no arquivo.');
+      const header=rows[0].map(s=>s.trim().replace(/^\ufeff/,''));
+      const find=(key)=>header.findIndex(v=>v.toLowerCase()===key.toLowerCase());
+      const ix={lat:find('latitude'),lon:find('longitude'),time:find('fixTime'),valid:find('valid')};
+      if(ix.lat<0||ix.lon<0||ix.time<0)throw new Error('O CSV do Traccar deve conter as colunas latitude, longitude e fixTime.');
+      const output=[];
+      for(const row of rows.slice(1)) {
+        if(ix.valid>=0&&/^false$/i.test((row[ix.valid]||'').trim()))continue;
+        const lat=Number(row[ix.lat]),lon=Number(row[ix.lon]),ms=parseGpsUtc(row[ix.time]);
+        if(!Number.isFinite(ms)||!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)continue;
+        output.push([ms,lat,lon]);
+      }
+      output.sort((a,b)=>a[0]-b[0]);
+      if(output.length<2)throw new Error('São necessárias pelo menos duas posições GPS válidas.');
+      return output;
+    }
+    function validateAlias(v) {
+      v=v.trim().replace(/\s+/g,' ');
+      if(!/^Supervisor(?: [A-Z0-9]{1,3})?$/i.test(v))throw new Error('Use uma identificação genérica, como Supervisor X, Supervisor 2 ou Supervisor.');
+      return v;
+    }
+    function readableTime(ms) {return fmtTime.format(new Date(ms));}
+    function localSeconds(ms) {
+      // Use the configured São Paulo timezone; never infer a time from the device or UTC hour.
+      const p={};
+      fmtTime.formatToParts(new Date(ms)).forEach(part=>{if(part.type!=='literal')p[part.type]=Number(part.value);});
+      return p.hour*3600+p.minute*60+p.second;
+    }
+    function selectTimeReferences(positions) {
+      // Use the closest real GPS fix to each clock hour; break exact ties toward earlier fixes.
+      // Missing coverage does not produce a fabricated time/location marker.
+      return REFERENCE_HOURS.flatMap(hour=>{
+        const target=hour*3600;
+        let best=null,bestGap=Infinity,bestSigned=Infinity;
+        for(const point of positions) {
+          const signed=localSeconds(point[0])-target;
+          const gap=Math.abs(signed);
+          if(gap<bestGap || (gap===bestGap && signed<bestSigned)) {
+            best=point;bestGap=gap;bestSigned=signed;
+          }
+        }
+        return best && bestGap<=MAX_REFERENCE_GAP_SECONDS
+          ? [{hour,label:`${String(hour).padStart(2,'0')}:00`,point:best,deltaSeconds:bestSigned}]
+          : [];
+      });
+    }
+    function pointHtml(point, tag='Posição GPS') {
+      const [ms,lat,lon]=point;
+      const loc=`${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+      const gmaps=`https://www.google.com/maps?q=${lat.toFixed(7)},${lon.toFixed(7)}`;
+      return `<div class="popup-heading">${readableTime(ms)}</div><div class="popup-subheading">${tag} · ${fmtDay.format(new Date(ms))} · São Paulo</div><div class="popup-location">Coordenadas<br><code>${loc}</code><a class="popup-link" href="${gmaps}" target="_blank" rel="noopener noreferrer">Ver no Google Maps ↗</a></div>`;
+    }
+    function coords(point) {return [point[1],point[2]];}
+    function showBasemapNotice(message) {
+      const notice=el('base-map-notice');notice.textContent=message;notice.hidden=false;
+    }
+    function clearBasemapNotice() {el('base-map-notice').hidden=true;}
+    function ensureMap() {
+      if(map)return;
+      if(typeof window.L==='undefined') {document.body.classList.add('missing-leaflet');return;}
+      // Some browsers/loaders block the external Leaflet stylesheet but allow JS.
+      // Without pane positioning, the vector route and controls can disappear.
+      const cssProbe=document.createElement('div');cssProbe.className='leaflet-pane';
+      document.body.appendChild(cssProbe);
+      if(getComputedStyle(cssProbe).position!=='absolute')document.documentElement.classList.add('leaflet-css-fallback');
+      cssProbe.remove();
+      // OpenFreeMap is explicitly free/no-key and supports Leaflet through MapLibre GL.
+      // Unlike OSM standard raster servers, it works without a website Referer when
+      // the standalone HTML is opened directly via file:// in Chrome or Brave.
+      // MapLibre GL v4 is pinned to retain classic-worker support for local HTML.
+      map=L.map('map',{zoomControl:false,preferCanvas:false,worldCopyJump:true,minZoom:1,maxZoom:19}).setView([-23.55,-46.63],11);
+      if(typeof L.maplibreGL!=='function') {
+        showBasemapNotice('Não foi possível carregar o mapa. Verifique sua conexão e atualize a página.');
+      } else {
+        const basemap=L.maplibreGL({
+          style:'https://tiles.openfreemap.org/styles/positron',
+          attribution:'<a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> &copy; <a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">colaboradores do OpenStreetMap</a>'
+        }).addTo(map);
+        let ready=false;
+        const vector=basemap.getMaplibreMap();
+        vector.once('load',()=>{ready=true;clearBasemapNotice();});
+        vector.on('error',e=>{
+          if(!ready) showBasemapNotice('Não foi possível carregar o mapa base. Verifique a conexão ou abra o arquivo no Chrome.');
+        });
+      }
+      L.control.zoom({position:'topright'}).addTo(map);
+      for(const [name,z] of [['routePane',410],['directionPane',420],['fixPane',440],['timePane',460],['replayPane',480]]) {
+        const pane=map.createPane(name);pane.style.zIndex=z;
+      }
+      // Leaflet hover times live in tooltipPane. Route SVG, GPS dots and fixed-time
+      // reference markers must never cover tooltip labels or click popups.
+      map.getPane('tooltipPane').style.zIndex='1500';
+      map.getPane('popupPane').style.zIndex='1600';
+      dotLayer=L.layerGroup().addTo(map);
+      arrowLayer=L.layerGroup().addTo(map);
+      referenceLayer=L.layerGroup().addTo(map);
+      map.on('zoomend moveend',()=>{if(current){refreshDots();refreshArrows();}});
+    }
+    function renderRoute(route, {fit=true}={}) {
+      pauseReplay();
+      ensureMap();if(!map)return;
+      if(line)line.remove();dotLayer.clearLayers();arrowLayer.clearLayers();referenceLayer.clearLayers();
+      if(replayMarker){replayMarker.remove();replayMarker=null;}
+      current=route;
+      const positions=current.positions;
+      if(!Array.isArray(positions)||positions.length<2)return;
+      document.body.classList.add('has-route');
+      el('route-title').textContent=`${current.alias} • ${localDateLabel(current.date)}`;
+      el('route-subtitle').textContent=`${positions.length} posições GPS · horário de São Paulo`;
+      document.title=`${current.alias} • ${localDateLabel(current.date)}`;
+      line=L.polyline(positions.map(coords),{color:'#1268d8',weight:9,opacity:.97,lineJoin:'round',lineCap:'round',pane:'routePane'}).addTo(map);
+      line.on('click', e=>{
+        // An overview click on the line also reveals a GPS fix when dots are close together.
+        const xy=map.latLngToLayerPoint(e.latlng);let best=0,d=Infinity;
+        positions.forEach((p,i)=>{const t=map.latLngToLayerPoint(coords(p));const v=(t.x-xy.x)**2+(t.y-xy.y)**2;if(v<d){d=v;best=i;}});
+        L.popup({maxWidth:250}).setLatLng(coords(positions[best])).setContent(pointHtml(positions[best])).openOn(map);
+      });
+      const references=selectTimeReferences(positions);
+      document.querySelectorAll('[data-reference-hour]').forEach(item=>{
+        item.hidden=!references.some(ref=>ref.hour===Number(item.dataset.referenceHour));
+      });
+      for(const ref of references) {
+        const actual=readableTime(ref.point[0]);
+        const icon=L.divIcon({
+          className:'',html:`<div class="time-reference">${String(ref.hour).padStart(2,'0')}</div>`,
+          iconSize:[29,29],iconAnchor:[14.5,14.5]
+        });
+        const title=`Próximo de ${ref.label} · GPS ${actual}`;
+        L.marker(coords(ref.point),{icon,pane:'timePane',title,zIndexOffset:200})
+          .bindTooltip(title,{direction:'top',offset:[0,-18],className:'gps-time-tooltip',opacity:1})
+          .bindPopup(()=>pointHtml(ref.point,`Posição GPS mais próxima de ${ref.label}`),{offset:[0,-9]})
+          .addTo(referenceLayer);
+      }
+      if(fit)map.fitBounds(line.getBounds(),{paddingTopLeft:[55,100],paddingBottomRight:[60,75],maxZoom:15});
+      refreshDots();refreshArrows();
+      // Keep the initial map uncluttered. The replay marker appears when the
+      // viewer plays, steps or scrubs, without obscuring an 08:00 reference marker.
+      setReplayIndex(0,{activate:false});
+    }
+    function refreshDots() {
+      if(!current||!map)return;
+      dotLayer.clearLayers();const zoom=map.getZoom();
+      const minGap=zoom<12?24:zoom<13?20:zoom<14?16:zoom<15?12:zoom<16?7:0;
+      const seen=new Map();const bounds=map.getBounds().pad(.15);
+      current.positions.forEach((p,i)=>{
+        const ll=coords(p);if(!bounds.contains(ll))return;
+        const xy=map.latLngToLayerPoint(ll);
+        if(minGap>0){
+          const gx=Math.round(xy.x/minGap),gy=Math.round(xy.y/minGap);
+          let collide=false;
+          for(let dx=-1;dx<=1&&!collide;dx++)for(let dy=-1;dy<=1&&!collide;dy++) {
+            const others=seen.get(`${gx+dx},${gy+dy}`)||[];
+            for(const op of others){if(Math.hypot(xy.x-op.x,xy.y-op.y)<minGap){collide=true;break;}}
+          }
+          if(collide && i!==0 && i!==current.positions.length-1)return;
+          const key=`${gx},${gy}`;if(!seen.has(key))seen.set(key,[]);seen.get(key).push(xy);
+        }
+        L.circleMarker(ll,{pane:'fixPane',radius:zoom>=16?4.1:3.25,color:'#fff',weight:1.15,fillColor:'#21252d',fillOpacity:1,interactive:true,bubblingMouseEvents:false})
+          .bindTooltip(readableTime(p[0]),{direction:'top',offset:[0,-14],className:'gps-time-tooltip',opacity:1})
+          .bindPopup(()=>pointHtml(p),{offset:[0,-10]})
+          .addTo(dotLayer);
+      });
+    }
+    function refreshArrows() {
+      if(!current||!map)return;
+      arrowLayer.clearLayers();
+      const points=current.positions;
+      const gapPx=88;
+      const max=115;
+      let carried=0,count=0;
+      for(let i=1;i<points.length&&count<max;i++) {
+        const prev=points[i-1],curr=points[i];
+        // Never draw a continuous direction across a substantial GPS recording gap.
+        if(curr[0]-prev[0]>15*60*1000){carried=0;continue;}
+        const a=map.latLngToLayerPoint(coords(prev));
+        const b=map.latLngToLayerPoint(coords(curr));
+        const dx=b.x-a.x,dy=b.y-a.y,seg=Math.hypot(dx,dy);
+        if(seg<4)continue;
+        const ux=dx/seg,uy=dy/seg, px=-uy,py=ux;
+        let used=0;
+        while(carried+seg-used>=gapPx && count<max) {
+          const distance=used+(gapPx-carried), ratio=distance/seg;
+          const cx=a.x+dx*ratio,cy=a.y+dy*ratio;
+          // Small white chevron, drawn precisely on the middle of the blue route.
+          // Its 2.4px stroke and ~6px width fit entirely inside the 9px route.
+          const wing1=map.layerPointToLatLng(L.point(cx-ux*2.5+px*2.15,cy-uy*2.5+py*2.15));
+          const tip=map.layerPointToLatLng(L.point(cx+ux*2.75,cy+uy*2.75));
+          const wing2=map.layerPointToLatLng(L.point(cx-ux*2.5-px*2.15,cy-uy*2.5-py*2.15));
+          L.polyline([wing1,tip,wing2],{
+            pane:'directionPane',color:'#fff',weight:2.1,opacity:1,
+            lineCap:'round',lineJoin:'round',interactive:false
+          }).addTo(arrowLayer);
+          count++;used=distance;carried=0;
+        }
+        carried+=seg-used;
+      }
+    }
+    function pauseReplay() {
+      if(replayTimer!==null){clearInterval(replayTimer);replayTimer=null;}
+      const button=el('replay-toggle');
+      button.textContent='Reproduzir';button.setAttribute('aria-label','Reproduzir trajeto GPS');button.title='Reproduzir trajeto GPS';
+    }
+    function setReplayIndex(requestedIndex,{pan=false,activate=true}={}) {
+      if(!current||!current.positions||!current.positions.length||!map)return;
+      const positions=current.positions;
+      replayIndex=Math.max(0,Math.min(positions.length-1,Math.round(Number(requestedIndex)||0)));
+      const point=positions[replayIndex];
+      if(activate&&!replayMarker) {
+        replayMarker=L.circleMarker(coords(point),{
+          pane:'replayPane',radius:9,color:'#0f233b',weight:2.5,
+          fillColor:'#ffc94b',fillOpacity:1,className:'replay-current-ring',bubblingMouseEvents:false
+        }).bindPopup(()=>pointHtml(current.positions[replayIndex],'Posição da reprodução'),{offset:[0,-12]}).addTo(map);
+      } else if(replayMarker) replayMarker.setLatLng(coords(point));
+      const slider=el('replay-range');
+      slider.max=String(positions.length-1);slider.value=String(replayIndex);
+      el('replay-time').textContent=readableTime(point[0]);
+      el('replay-count').textContent=`${replayIndex+1} / ${positions.length}`;
+      el('replay-from').textContent=readableTime(positions[0][0]);
+      el('replay-to').textContent=readableTime(positions[positions.length-1][0]);
+      el('replay-previous').disabled=(replayIndex===0);
+      el('replay-next').disabled=(replayIndex===positions.length-1);
+      if(pan&&!map.getBounds().contains(coords(point))) map.panInside(coords(point),{paddingTopLeft:[65,140],paddingBottomRight:[65,185],animate:true});
+      if(replayIndex===positions.length-1&&replayTimer!==null)pauseReplay();
+    }
+    function playReplay() {
+      if(!current || !current.positions || current.positions.length<2)return;
+      pauseReplay();
+      if(replayIndex===current.positions.length-1)setReplayIndex(0);
+      const button=el('replay-toggle');button.textContent='Pausar';button.setAttribute('aria-label','Pausar reprodução GPS');button.title='Pausar reprodução GPS';
+      const delay=Math.max(70,Math.round(500/Number(el('replay-speed').value||1)));
+      replayTimer=setInterval(()=>setReplayIndex(replayIndex+1,{pan:true}),delay);
+    }
+    function addReplayListeners() {
+      el('replay-range').addEventListener('input',e=>{pauseReplay();setReplayIndex(e.target.value,{pan:true});});
+      el('replay-toggle').addEventListener('click',()=>{if(replayTimer!==null)pauseReplay();else playReplay();});
+      el('replay-previous').addEventListener('click',()=>{pauseReplay();setReplayIndex(replayIndex-1,{pan:true});});
+      el('replay-next').addEventListener('click',()=>{pauseReplay();setReplayIndex(replayIndex+1,{pan:true});});
+      el('replay-speed').addEventListener('change',()=>{if(replayTimer!==null)playReplay();});
+      document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseReplay();});
+      window.addEventListener('pagehide',pauseReplay);
+    }
+    function validateDailyRoute(route,expectedDate) {
+      if(!route||!Array.isArray(route.positions)||route.positions.length<2)throw new Error('Não há posições GPS válidas para este dia.');
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(route.date)||route.date!==expectedDate)throw new Error('A data do GPS não corresponde ao dia selecionado.');
+      const alias=validateAlias(route.alias||'Supervisor X');
+      const positions=route.positions.map(p=>[Number(p[0]),Number(p[1]),Number(p[2])]);
+      if(positions.some(p=>!Number.isFinite(p[0])||!Number.isFinite(p[1])||!Number.isFinite(p[2])||Math.abs(p[1])>90||Math.abs(p[2])>180||localDay(p[0])!==route.date))throw new Error('Os dados GPS do dia selecionado são inválidos.');
+      if(positions.some((p,i)=>i>0&&p[0]<positions[i-1][0]))throw new Error('Os dados GPS não estão ordenados pelo horário registrado.');
+      return {version:1,alias,date:route.date,timeZone:TZ,positions};
+    }
+    function updateDayOptions(list,selected) {
+      const dropdown=el('viewer-day-select');
+      const accepted=[...new Set(list.filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)))].sort().reverse();
+      dropdown.innerHTML='';
+      for(const day of accepted){const option=document.createElement('option');option.value=day;option.textContent=localDateLabel(day);dropdown.appendChild(option);}
+      if(accepted.includes(selected))dropdown.value=selected;
+      else if(accepted.length)dropdown.value=accepted[0];
+      dropdown.disabled=accepted.length<2;
+    }
+    function showViewerStatus(message) {
+      const status=el('viewer-status');status.textContent=message;status.hidden=!message;
+    }
+    async function selectViewerDay(date) {
+      const seq=++viewerFetchSeq;
+      const before=current?current.date:null;
+      pauseReplay();
+      showViewerStatus('');
+      try {
+        let route=loadedDays.get(date);
+        if(!route){
+          if(location.protocol==='file:')throw new Error('Para visualizar outros dias, publique o mapa em um site. O dia incluído funciona localmente.');
+          const response=await fetch(`${DATA_ROOT}${date}.json`,{cache:'no-store'});
+          if(!response.ok)throw new Error(`Dados GPS do dia indisponíveis (${response.status}).`);
+          route=validateDailyRoute(await response.json(),date);
+          loadedDays.set(date,route);
+        }
+        if(seq!==viewerFetchSeq)return;
+        renderRoute(route);
+        el('viewer-day-select').value=date;
+      } catch(err) {
+        if(seq!==viewerFetchSeq)return;
+        if(before)el('viewer-day-select').value=before;
+        showViewerStatus(err.message||'Não foi possível carregar esta data.');
+      }
+    }
+    async function initViewerDays() {
+      document.body.classList.add('viewer-mode');
+      const hasEmbedded=Array.isArray(embedded.positions);
+      if(hasEmbedded) {
+        const route=validateDailyRoute(embedded,embedded.date);
+        loadedDays.set(route.date,route);
+        updateDayOptions([route.date],route.date);
+        renderRoute(route);
+      }
+      el('viewer-day-select').addEventListener('change',e=>selectViewerDay(e.target.value));
+      // A standalone download is functional offline. The hosted map loads a dated
+      // manifest and JSON files, giving one permanent URL for all published days.
+      if(location.protocol==='file:') {
+        if(!hasEmbedded)showViewerStatus('Abra viewer.html pelo GitHub Pages ou por um servidor local para carregar os dias disponíveis.');
+        return;
+      }
+      try {
+        const response=await fetch(`${DATA_ROOT}dates.json`,{cache:'no-store'});
+        if(!response.ok)throw new Error(`Lista de dias indisponível (${response.status}).`);
+        const manifest=await response.json();
+        if(!Array.isArray(manifest.dates))throw new Error('A lista de dias é inválida.');
+        const available=manifest.dates.filter(d=>typeof d==='string');
+        if(hasEmbedded&&!available.includes(embedded.date))available.push(embedded.date);
+        const defaultDay=hasEmbedded?embedded.date:available.slice().sort().at(-1);
+        updateDayOptions(available,defaultDay);
+        if(!hasEmbedded&&defaultDay)await selectViewerDay(defaultDay);
+        else if(!hasEmbedded)showViewerStatus('Não há dias com dados GPS para exibir.');
+      } catch(err){
+        if(!hasEmbedded)showViewerStatus('Não foi possível carregar a lista de dias: '+err.message);
+      }
+    }
+    function createRoute(records, date, alias) {
+      const selected=records.filter(p=>localDay(p[0])===date);
+      if(selected.length<2)throw new Error('O dia selecionado contém menos de duas posições GPS.');
+      return {version:1,alias,date,timeZone:TZ,positions:selected};
+    }
+    function selectCurrent() {
+      if(!csvRows.length)return;
+      try {
+        const alias=validateAlias(el('alias-input').value);
+        const date=el('date-select').value;
+        const route=createRoute(csvRows,date,alias);
+        document.body.classList.add('editor-preview');
+        renderRoute(route);
+        el('download-btn').disabled=false;
+        el('download-hint').hidden=false;
+        el('import-status').textContent=`${route.positions.length} posições em ${localDateLabel(date)}. Pronto para baixar.`;
+        el('import-status').classList.remove('error');
+      } catch(e) {
+        el('download-btn').disabled=true;
+        el('import-status').textContent=e.message;
+        el('import-status').classList.add('error');
+      }
+    }
+    async function loadFile(file) {
+      try {
+        el('download-btn').disabled=true;el('import-status').textContent='Lendo posições GPS…';el('import-status').classList.remove('error');
+        csvRows=csvToRecords(await file.text());
+        days=[...new Set(csvRows.map(p=>localDay(p[0])))].sort();
+        const picker=el('date-select');picker.innerHTML='';
+        for(const d of days){const opt=document.createElement('option');opt.value=d;opt.textContent=localDateLabel(d);picker.appendChild(opt);}
+        picker.value=days[days.length-1];el('date-field').hidden=false;
+        selectCurrent();
+      } catch(e) {el('import-status').textContent=e.message;el('import-status').classList.add('error');el('download-btn').disabled=true;}
+    }
+    function exportPage() {
+      if(!current)return;
+      const safe=JSON.stringify(current).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/&/g,'\\u0026');
+      const html=template.replace('{"__EMPTY_ROUTE__":true}',safe);
+      if(html===template)throw new Error('Não foi possível inserir a rota no modelo HTML.');
+      const slug=current.alias.toLowerCase().replace(/\s+/g,'-');
+      const filename=`${slug}-${current.date}.html`;
+      const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+      const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=filename;document.body.appendChild(link);link.click();link.remove();
+      setTimeout(()=>URL.revokeObjectURL(link.href),2500);
+      el('import-status').textContent=`Arquivo ${filename} baixado. Publique-o em seu site para criar o link.`;
+    }
+    function init() {
+      addReplayListeners();
+      if(isViewer) {
+        initViewerDays();
+      } else {
+        ensureMap();
+        el('file-input').addEventListener('change', e=>{if(e.target.files[0])loadFile(e.target.files[0]);});
+        el('alias-input').addEventListener('change',()=>selectCurrent());
+        el('date-select').addEventListener('change',()=>selectCurrent());
+        el('download-btn').addEventListener('click',exportPage);
+      }
+    }
+    init();
+    // Expose a tiny test-only API for local verification, not required by viewers.
+    if(location.search.includes('test=1'))window.__routeTests={csvToRecords,parseGpsUtc,localDay,createRoute,selectTimeReferences,getCurrent:()=>current,getReplayIndex:()=>replayIndex,selectViewerDay,setReplayIndex,playReplay,pauseReplay,loadedDays};
+  })();
+  </script>
+</body>
+</html>
