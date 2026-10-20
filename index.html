@@ -340,7 +340,7 @@
   <aside class="map-control-stack" aria-label="Supervisor e reprodução">
   <header class="route-summary" aria-live="polite">
     <div>
-      <div class="title" id="route-title">Supervisor</div>
+      <div class="title" id="route-title">Supervisor X</div>
       <div class="subtitle" id="route-subtitle"></div>
     </div>
     <div class="header-actions">
@@ -394,7 +394,7 @@
     <label for="file-input">CSV de posições do Traccar</label>
     <input id="file-input" type="file" accept=".csv,text/csv">
     <label for="alias-input">Identificação pública (sem nomes reais)</label>
-    <input id="alias-input" type="text" value="Supervisor" placeholder="Supervisor" maxlength="24" spellcheck="false">
+    <input id="alias-input" type="text" value="Supervisor X" placeholder="Supervisor X" maxlength="24" spellcheck="false">
     <div id="date-field" hidden>
       <label for="date-select">Data do GPS (São Paulo)</label>
       <select id="date-select"></select>
@@ -415,7 +415,7 @@
   <div id="viewer-status" class="viewer-status" role="status" hidden></div>
   <div id="base-map-notice" class="base-map-notice" role="status" hidden></div>
   <div class="fatal" role="alert"><div><h2>Biblioteca do mapa indisponível</h2><p>Não foi possível carregar o Leaflet. Verifique sua conexão e recarregue a página. O mapa usa dados online, mesmo quando o HTML está salvo no computador.</p></div></div>
-  <script id="route-payload" data-root="data/" type="application/json">{"__HOSTED_VIEWER__": true, "alias": "Supervisor"}</script>
+  <script id="route-payload" data-root="data/" type="application/json">{"__HOSTED_VIEWER__": true, "alias": "Supervisor X"}</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
@@ -435,6 +435,7 @@
     const REFERENCE_HOURS=[8,13,17];
     const MAX_REFERENCE_GAP_SECONDS=30*60;
     let map=null, line=null, dotLayer=null, arrowLayer=null, referenceLayer=null;
+    let referenceMarkers=[];
     let current=null, csvRows=[], days=[], template=initialHtml;
     let replayMarker=null, replayIndex=0, replayTimer=null, viewerFetchSeq=0;
     const loadedDays=new Map();
@@ -492,7 +493,7 @@
     }
     function validateAlias(v) {
       v=v.trim().replace(/\s+/g,' ');
-      if(!/^Supervisor(?: [A-Z0-9]{1,3})?$/i.test(v))throw new Error('Use uma identificação genérica, como Supervisor ou Supervisor 2.');
+      if(!/^Supervisor(?: [A-Z0-9]{1,3})?$/i.test(v))throw new Error('Use uma identificação genérica, como Supervisor X, Supervisor 2 ou Supervisor.');
       return v;
     }
     function readableTime(ms) {return fmtTime.format(new Date(ms));}
@@ -560,7 +561,7 @@
         });
       }
       L.control.zoom({position:'topright'}).addTo(map);
-      for(const [name,z] of [['routePane',410],['directionPane',420],['fixPane',440],['timePane',460],['replayPane',480]]) {
+      for(const [name,z] of [['routePane',410],['directionPane',420],['fixPane',440],['timePane',500],['replayPane',480]]) {
         const pane=map.createPane(name);pane.style.zIndex=z;
       }
       // Leaflet hover times live in tooltipPane. Route SVG, GPS dots and fixed-time
@@ -570,20 +571,20 @@
       dotLayer=L.layerGroup().addTo(map);
       arrowLayer=L.layerGroup().addTo(map);
       referenceLayer=L.layerGroup().addTo(map);
-      map.on('zoomend moveend',()=>{if(current){refreshDots();refreshArrows();}});
+      map.on('zoomend moveend resize',()=>{if(current){refreshDots();refreshArrows();refreshReferenceMarkers();}});
     }
     function renderRoute(route, {fit=true}={}) {
       pauseReplay();
       ensureMap();if(!map)return;
-      if(line)line.remove();dotLayer.clearLayers();arrowLayer.clearLayers();referenceLayer.clearLayers();
+      if(line)line.remove();dotLayer.clearLayers();arrowLayer.clearLayers();referenceLayer.clearLayers();referenceMarkers=[];
       if(replayMarker){replayMarker.remove();replayMarker=null;}
       current=route;
       const positions=current.positions;
       if(!Array.isArray(positions)||positions.length<2)return;
       document.body.classList.add('has-route');
-      el('route-title').textContent=isViewer?'Supervisor':`${current.alias} • ${localDateLabel(current.date)}`;
+      el('route-title').textContent=isViewer?current.alias:`${current.alias} • ${localDateLabel(current.date)}`;
       el('route-subtitle').textContent=`${positions.length} posições GPS · horário de São Paulo`;
-      document.title=`${isViewer?'Supervisor':current.alias} • ${localDateLabel(current.date)}`;
+      document.title=`${current.alias} • ${localDateLabel(current.date)}`;
       line=L.polyline(positions.map(coords),{color:'#1268d8',weight:9,opacity:.97,lineJoin:'round',lineCap:'round',pane:'routePane'}).addTo(map);
       line.on('click', e=>{
         // An overview click on the line also reveals a GPS fix when dots are close together.
@@ -602,16 +603,69 @@
           iconSize:[29,29],iconAnchor:[14.5,14.5]
         });
         const title=`Próximo de ${ref.label} · GPS ${actual}`;
-        L.marker(coords(ref.point),{icon,pane:'timePane',title,zIndexOffset:200})
+        const marker=L.marker(coords(ref.point),{icon,pane:'timePane',title,zIndexOffset:200})
           .bindTooltip(title,{direction:'top',offset:[0,-18],className:'gps-time-tooltip',opacity:1})
           .bindPopup(()=>pointHtml(ref.point,`Posição GPS mais próxima de ${ref.label}`),{offset:[0,-9]})
           .addTo(referenceLayer);
+        // The connector always starts at the real GPS fix, even when the label moves.
+        const connector=L.polyline([],{color:'#f4b84a',weight:1.5,opacity:0.9,
+          dashArray:'3 5',interactive:false,pane:'directionPane'}).addTo(referenceLayer);
+        referenceMarkers.push({ref,marker,connector});
       }
       if(fit)map.fitBounds(line.getBounds(),{paddingTopLeft:[55,100],paddingBottomRight:[60,75],maxZoom:15});
-      refreshDots();refreshArrows();
+      refreshReferenceMarkers();refreshDots();refreshArrows();
       // Keep the initial map uncluttered. The replay marker appears when the
       // viewer plays, steps or scrubs, without obscuring an 08:00 reference marker.
       setReplayIndex(0,{activate:false});
+    }
+    function layoutReferenceBadgeCenters(origins, viewport) {
+      // Adapted from Clarentia's screen-space GPS badge collision layout.
+      // Only the visual badges move; the recorded GPS fixes never change.
+      const half=14.5, pad=5, edge=8;
+      const inside=(x,y)=>x-half>=edge && y-half>=edge && x+half<=viewport.x-edge && y+half<=viewport.y-edge;
+      const used=[];
+      const overlaps=(x,y)=>used.some(other=>Math.abs(x-other.x)<29+pad && Math.abs(y-other.y)<29+pad);
+      const directions=[[0,-1],[1,0],[-1,0],[0,1],[0.707,-0.707],[-0.707,-0.707],[0.707,0.707],[-0.707,0.707]];
+      const candidates=[[0,0]];
+      for(const radius of [42,78,114,150,190,230])for(const [dx,dy] of directions)candidates.push([radius*dx,radius*dy]);
+      return origins.map(({x,y})=>{
+        // If the true point has left the viewport, don't invent an in-view marker.
+        if(x<0 || y<0 || x>viewport.x || y>viewport.y)return {x,y,moved:false};
+        let chosen=null;
+        for(const [dx,dy] of candidates){
+          const px=x+dx,py=y+dy;
+          if(inside(px,py) && !overlaps(px,py)){chosen={x:px,y:py};break;}
+        }
+        if(!chosen){
+          // Very small map: choose the in-bounds candidate with least overlap.
+          const eligible=candidates.map(([dx,dy])=>({x:x+dx,y:y+dy})).filter(p=>inside(p.x,p.y));
+          eligible.sort((a,b)=>{
+            const penalty=p=>used.reduce((n,o)=>n+Math.max(0,34-Math.abs(p.x-o.x))*Math.max(0,34-Math.abs(p.y-o.y)),0);
+            return penalty(a)-penalty(b) || Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y);
+          });
+          chosen=eligible[0] || {x:Math.max(half+edge,Math.min(viewport.x-half-edge,x)),
+            y:Math.max(half+edge,Math.min(viewport.y-half-edge,y))};
+        }
+        used.push(chosen);
+        return {...chosen,moved:Math.hypot(chosen.x-x,chosen.y-y)>1};
+      });
+    }
+    function refreshReferenceMarkers() {
+      if(!map || !referenceMarkers.length)return;
+      const origins=referenceMarkers.map(({ref})=>map.latLngToContainerPoint(coords(ref.point)));
+      const placements=layoutReferenceBadgeCenters(origins,map.getSize());
+      referenceMarkers.forEach(({ref,marker,connector},i)=>{
+        const actual=L.latLng(...coords(ref.point));
+        const place=placements[i];
+        if(!place.moved){
+          marker.setLatLng(actual);
+          connector.setLatLngs([]);
+        }else{
+          const shifted=map.containerPointToLatLng(L.point(place.x,place.y));
+          marker.setLatLng(shifted);
+          connector.setLatLngs([actual,shifted]);
+        }
+      });
     }
     function refreshDots() {
       if(!current||!map)return;
@@ -718,7 +772,7 @@
     function validateDailyRoute(route,expectedDate) {
       if(!route||!Array.isArray(route.positions)||route.positions.length<2)throw new Error('Não há posições GPS válidas para este dia.');
       if(!/^\d{4}-\d{2}-\d{2}$/.test(route.date)||route.date!==expectedDate)throw new Error('A data do GPS não corresponde ao dia selecionado.');
-      const alias=validateAlias(route.alias||'Supervisor');
+      const alias=validateAlias(route.alias||'Supervisor X');
       const positions=route.positions.map(p=>[Number(p[0]),Number(p[1]),Number(p[2])]);
       if(positions.some(p=>!Number.isFinite(p[0])||!Number.isFinite(p[1])||!Number.isFinite(p[2])||Math.abs(p[1])>90||Math.abs(p[2])>180||localDay(p[0])!==route.date))throw new Error('Os dados GPS do dia selecionado são inválidos.');
       if(positions.some((p,i)=>i>0&&p[0]<positions[i-1][0]))throw new Error('Os dados GPS não estão ordenados pelo horário registrado.');
@@ -928,7 +982,7 @@
     }
     init();
     // Expose a tiny test-only API for local verification, not required by viewers.
-    if(location.search.includes('test=1'))window.__routeTests={csvToRecords,parseGpsUtc,localDay,createRoute,selectTimeReferences,getCurrent:()=>current,getReplayIndex:()=>replayIndex,selectViewerDay,setReplayIndex,playReplay,pauseReplay,loadedDays};
+    if(location.search.includes('test=1'))window.__routeTests={csvToRecords,parseGpsUtc,localDay,createRoute,selectTimeReferences,getCurrent:()=>current,getReplayIndex:()=>replayIndex,layoutReferenceBadgeCenters,selectViewerDay,setReplayIndex,playReplay,pauseReplay,loadedDays};
   })();
   </script>
 </body>
