@@ -77,6 +77,9 @@
     .legend-line {width:20px;border-top:4px solid #1767d4;border-radius:9px;}
     .legend-direction {color:#fff;font-size:20px;font-weight:900;line-height:12px;transform:rotate(-8deg);}
 
+    .gps-stop-badge {width:24px;height:24px;border-radius:50%;border:1px solid #94a3b8;background:rgba(255,255,255,.97);box-shadow:0 1px 3px #0002;display:flex;align-items:center;justify-content:center;color:#475569;font:700 9px Arial,sans-serif;white-space:nowrap;cursor:pointer;}
+    .gps-stop-badge.selected {border:2px solid #475569;box-shadow:0 0 0 2px #f8fafc,0 2px 6px #0003;}
+    .legend-stop {width:19px;height:19px;border-radius:50%;border:1px solid #94a3b8;background:#fff;color:#475569;display:inline-flex;align-items:center;justify-content:center;font:700 7px Arial,sans-serif;}
     /* A milestone is a recorded GPS position near a reference time, not a trip endpoint. */
     .time-reference {display:flex;align-items:center;justify-content:center;width:29px;height:29px;border-radius:50%;border:3px solid #f4b84a;background:#18283a;color:white;font-size:11px;font-weight:800;line-height:1;box-shadow:0 2px 9px #0007,0 0 0 1px #fff;user-select:none;}
     /* Force both kinds of GPS information above all route, arrow and position panes.
@@ -469,7 +472,7 @@
     <span class="legend-item" data-reference-hour="17"><span class="legend-time">17</span>17:00</span>
     </div><div class="legend-row"><span class="legend-item"><span class="legend-dot fix"></span>Posição GPS</span>
     <span class="legend-item direction"><span class="legend-direction">➜</span>Sentido</span>
-    <span class="legend-item"><span class="legend-line"></span>Rota</span></div>
+    <span class="legend-item"><span class="legend-line"></span>Rota</span><span class="legend-item"><span class="legend-stop">5m</span>Parada</span></div>
   </div>
   <div id="viewer-status" class="viewer-status" role="status" hidden></div>
   <div id="base-map-notice" class="base-map-notice" role="status" hidden></div>
@@ -493,11 +496,13 @@
     const initialHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
     const REFERENCE_HOURS=[8,13,17];
     const MAX_REFERENCE_GAP_SECONDS=30*60;
-    let map=null, line=null, dotLayer=null, arrowLayer=null, referenceLayer=null;
+    let map=null, line=null, dotLayer=null, arrowLayer=null, referenceLayer=null, stopLayer=null;
     let referenceMarkers=[];
     let current=null, csvRows=[], days=[], template=initialHtml;
     let replayMarker=null, replayIndex=0, replayTimer=null, viewerFetchSeq=0;
     const loadedDays=new Map();
+    const loadedStops=new Map();
+    let selectedStopMarker=null;
     let availableViewerDays=[],selectedViewerDay=null,calendarMonth='',viewerFetchBusy=false;
     const fmtCalendarMonth=new Intl.DateTimeFormat('pt-BR',{month:'long',year:'numeric',timeZone:'UTC'});
 
@@ -620,7 +625,7 @@
         });
       }
       L.control.zoom({position:'bottomright'}).addTo(map);
-      for(const [name,z] of [['routePane',410],['directionPane',420],['fixPane',440],['timePane',500],['replayPane',520]]) {
+      for(const [name,z] of [['routePane',410],['directionPane',420],['fixPane',440],['timePane',500],['stopPane',510],['replayPane',520]]) {
         const pane=map.createPane(name);pane.style.zIndex=z;
       }
       // Leaflet hover times live in tooltipPane. Route SVG, GPS dots and fixed-time
@@ -630,12 +635,13 @@
       dotLayer=L.layerGroup().addTo(map);
       arrowLayer=L.layerGroup().addTo(map);
       referenceLayer=L.layerGroup().addTo(map);
+      stopLayer=L.layerGroup().addTo(map);
       map.on('zoomend moveend resize',()=>{if(current){refreshDots();refreshArrows();refreshReferenceMarkers();}});
     }
     function renderRoute(route, {fit=true}={}) {
       pauseReplay();
       ensureMap();if(!map)return;
-      if(line)line.remove();dotLayer.clearLayers();arrowLayer.clearLayers();referenceLayer.clearLayers();referenceMarkers=[];
+      if(line)line.remove();dotLayer.clearLayers();arrowLayer.clearLayers();referenceLayer.clearLayers();referenceMarkers=[];stopLayer.clearLayers();selectedStopMarker=null;
       if(replayMarker){replayMarker.remove();replayMarker=null;}
       current=route;
       const positions=current.positions;
@@ -673,9 +679,36 @@
       }
       if(fit)map.fitBounds(line.getBounds(),{paddingTopLeft:[55,100],paddingBottomRight:[60,75],maxZoom:15});
       refreshReferenceMarkers();refreshDots();refreshArrows();
+      renderStops(loadedStops.get(route.date)||[]);
       // Keep the initial map uncluttered. The replay marker appears when the
       // viewer plays, steps or scrubs, without obscuring an 08:00 reference marker.
       setReplayIndex(0,{activate:false});
+    }
+    function stopDurationLabel(m){
+      const minutes=Math.max(0,Math.round(m));
+      const h=Math.floor(minutes/60),remain=minutes%60;
+      return h? h+'h'+String(remain).padStart(2,'0') : minutes+'m';
+    }
+    function renderStops(stops){
+      if(!stopLayer)return;
+      stopLayer.clearLayers();selectedStopMarker=null;
+      for(const stop of stops){
+        if(!Number.isFinite(stop.lat)||!Number.isFinite(stop.lon)||!Number.isFinite(stop.startMs)||!Number.isFinite(stop.endMs)||!Number.isFinite(stop.durationMinutes))continue;
+        const label=stopDurationLabel(stop.durationMinutes);
+        const icon=L.divIcon({className:'',html:'<div class="gps-stop-badge">'+label+'</div>',iconSize:[24,24],iconAnchor:[12,12]});
+        const marker=L.marker([stop.lat,stop.lon],{icon,pane:'stopPane',zIndexOffset:250,title:'Parada GPS • '+label});
+        marker.on('click',()=>{
+          if(selectedStopMarker&&selectedStopMarker.getElement())selectedStopMarker.getElement().querySelector('.gps-stop-badge')?.classList.remove('selected');
+          selectedStopMarker=marker;
+          marker.getElement()?.querySelector('.gps-stop-badge')?.classList.add('selected');
+          const detail='<div class="popup-heading">Parada • '+label+'</div><div class="popup-subheading">'+
+            readableTime(stop.startMs)+' - '+readableTime(stop.endMs)+'</div><div class="popup-location">'+
+            stop.inlierCount+' posições dentro de 30 m'+(stop.outlierCount?' • '+stop.outlierCount+' fora':'')+
+            '<br>GPS: '+stop.lat.toFixed(6)+', '+stop.lon.toFixed(6)+'</div>';
+          marker.bindPopup(detail,{offset:[0,-10]}).openPopup();
+        });
+        marker.addTo(stopLayer);
+      }
     }
     function layoutReferenceBadgeCenters(origins, viewport) {
       // Adapted from Clarentia's screen-space GPS badge collision layout.
@@ -943,6 +976,15 @@
         if(seq!==viewerFetchSeq)return;
         renderRoute(route);
         selectedViewerDay=date;
+        // Independent derived GPS stop file; a missing file never blocks the route.
+        try {
+          let stops=loadedStops.get(date);
+          if(!stops){
+            const resp=await fetch(`${DATA_ROOT}stops/${date}.json`,{cache:'no-store'});
+            if(resp.ok){const data=await resp.json();if(data.date===date&&Array.isArray(data.stops))stops=data.stops;}
+          }
+          if(seq===viewerFetchSeq){loadedStops.set(date,stops||[]);renderStops(stops||[]);}
+        } catch {if(seq===viewerFetchSeq)renderStops([]);}
       } catch(err) {
         if(seq!==viewerFetchSeq)return;
         showViewerStatus(err.message||'Não foi possível carregar esta data.');
