@@ -51,6 +51,8 @@ jobs:
           assert 'function layoutReferenceBadgeCenters' in html
           print('Verified Supervisor display label and collision layout.')
           PY
+      - name: Test stop detection rules
+        run: node --test scripts/gps-stops.test.mjs
       - name: Generate GPS stop overlays from published daily positions
         run: node scripts/build-gps-stops.mjs data
       - uses: actions/configure-pages@v5
