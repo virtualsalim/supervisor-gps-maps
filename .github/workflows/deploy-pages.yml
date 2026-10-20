@@ -40,6 +40,17 @@ jobs:
               assert len(route['positions']) >= 2
           print(f'Validated {len(dates)} published days.')
           PY
+      - name: Verify public supervisor label does not regress
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          html = Path('index.html').read_text(encoding='utf-8')
+          assert '<div class="title" id="route-title">Supervisor</div>' in html
+          assert "isViewer?'Supervisor':" in html
+          assert "document.title=\`${isViewer?'Supervisor':current.alias}" in html
+          assert 'function layoutReferenceBadgeCenters' in html
+          print('Verified Supervisor display label and collision layout.')
+          PY
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
