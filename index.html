@@ -697,16 +697,16 @@
         if(!Number.isFinite(stop.lat)||!Number.isFinite(stop.lon)||!Number.isFinite(stop.startMs)||!Number.isFinite(stop.endMs)||!Number.isFinite(stop.durationMinutes))continue;
         const label=stopDurationLabel(stop.durationMinutes);
         const icon=L.divIcon({className:'',html:'<div class="gps-stop-badge">'+label+'</div>',iconSize:[24,24],iconAnchor:[12,12]});
-        const marker=L.marker([stop.lat,stop.lon],{icon,pane:'stopPane',zIndexOffset:250,title:'Parada GPS • '+label});
+        const detail='<div class="popup-heading">Parada • '+label+'</div><div class="popup-subheading">'+
+          readableTime(stop.startMs)+' - '+readableTime(stop.endMs)+'</div><div class="popup-location">'+
+          stop.inlierCount+' posições dentro de 30 m'+(stop.outlierCount?' • '+stop.outlierCount+' fora':'')+
+          '<br>GPS: '+stop.lat.toFixed(6)+', '+stop.lon.toFixed(6)+'</div>';
+        const marker=L.marker([stop.lat,stop.lon],{icon,pane:'stopPane',zIndexOffset:250,title:'Parada GPS • '+label})
+          .bindPopup(detail,{offset:[0,-10]});
         marker.on('click',()=>{
           if(selectedStopMarker&&selectedStopMarker.getElement())selectedStopMarker.getElement().querySelector('.gps-stop-badge')?.classList.remove('selected');
           selectedStopMarker=marker;
           marker.getElement()?.querySelector('.gps-stop-badge')?.classList.add('selected');
-          const detail='<div class="popup-heading">Parada • '+label+'</div><div class="popup-subheading">'+
-            readableTime(stop.startMs)+' - '+readableTime(stop.endMs)+'</div><div class="popup-location">'+
-            stop.inlierCount+' posições dentro de 30 m'+(stop.outlierCount?' • '+stop.outlierCount+' fora':'')+
-            '<br>GPS: '+stop.lat.toFixed(6)+', '+stop.lon.toFixed(6)+'</div>';
-          marker.bindPopup(detail,{offset:[0,-10]}).openPopup();
         });
         marker.addTo(stopLayer);
         stopMarkers.push({marker,stop});
