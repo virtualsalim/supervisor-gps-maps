@@ -699,7 +699,7 @@
         const icon=L.divIcon({className:'',html:'<div class="gps-stop-badge">'+label+'</div>',iconSize:[24,24],iconAnchor:[12,12]});
         const detail='<div class="popup-heading">Parada • '+label+'</div><div class="popup-subheading">'+
           readableTime(stop.startMs)+' - '+readableTime(stop.endMs)+'</div><div class="popup-location">'+
-          stop.inlierCount+' posições dentro de 30 m'+(stop.outlierCount?' • '+stop.outlierCount+' fora':'')+
+          (stop.mergedStops>1 ? stop.mergedStops+' paradas próximas agrupadas' : stop.inlierCount+' posições dentro de 30 m'+(stop.outlierCount?' • '+stop.outlierCount+' fora':''))+
           '<br>GPS: '+stop.lat.toFixed(6)+', '+stop.lon.toFixed(6)+'</div>';
         const marker=L.marker([stop.lat,stop.lon],{icon,pane:'stopPane',zIndexOffset:250,title:'Parada GPS • '+label})
           .bindPopup(detail,{offset:[0,-10]});
