@@ -561,7 +561,7 @@
         });
       }
       L.control.zoom({position:'topright'}).addTo(map);
-      for(const [name,z] of [['routePane',410],['directionPane',420],['fixPane',440],['timePane',500],['replayPane',480]]) {
+      for(const [name,z] of [['routePane',410],['directionPane',420],['fixPane',440],['timePane',500],['replayPane',520]]) {
         const pane=map.createPane(name);pane.style.zIndex=z;
       }
       // Leaflet hover times live in tooltipPane. Route SVG, GPS dots and fixed-time
