@@ -333,6 +333,65 @@
       .viewer-day-wrap .day-step {width:22px;}
       .date-toggle {min-width:104px;padding:4px 5px;gap:4px;font-size:10.5px!important;}
     }
+
+    /* Compact controls: one-line identity/date, reduced replay height and desktop two-row legend. */
+    .map-control-stack .route-summary {padding:9px 12px;gap:5px;flex-wrap:nowrap;align-items:center;}
+    .map-control-stack .route-summary > div:first-child {display:flex;align-items:baseline;gap:5px;min-width:0;white-space:nowrap;}
+    .map-control-stack .route-summary .title {font-size:14px;flex-shrink:0;}
+    .map-control-stack .route-summary .subtitle {margin:0;font-size:10.5px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+    .count-short {display:none;}
+    .map-control-stack .route-summary .header-actions {width:auto;min-width:0;flex-shrink:0;gap:0;}
+    .map-control-stack .viewer-day-wrap {gap:2px;}
+    .viewer-day-wrap .day-step {width:24px;}
+    .date-toggle {min-width:103px;padding:4px 6px;}
+    .map-control-stack .replay-controls {padding:9px 12px 10px;}
+    .map-control-stack .replay-heading {flex-wrap:nowrap;gap:7px;}
+    .map-control-stack .replay-label {gap:5px;white-space:nowrap;font-size:12px;}
+    .map-control-stack #replay-time {font-size:16px;}
+    .map-control-stack .replay-count {font-size:10px;}
+    .map-control-stack .replay-speed-label {gap:5px;flex-shrink:0;font-size:10px;}
+    .map-control-stack #replay-speed {padding:4px 6px;font-size:11px;}
+    .map-control-stack .replay-range {margin:7px 0 2px;}
+    .map-control-stack .replay-actions button {height:30px;min-width:34px;}
+    .map-control-stack .replay-actions .replay-toggle {min-width:88px;padding:0 10px;}
+    .map-legend {flex-direction:column;align-items:stretch;gap:6px;padding:8px 12px;}
+    .map-legend .legend-row {display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;}
+    .map-legend .legend-item {font-size:12px;gap:7px;}
+    .leaflet-bottom.leaflet-right {margin-bottom:28px;margin-right:12px;}
+    @media(max-width:700px) {
+      .map-control-stack {top:9px;left:9px;width:min(404px,calc(100% - 18px));}
+      .map-control-stack .route-summary {padding:8px 10px;gap:4px;flex-wrap:nowrap;}
+      .map-control-stack .route-summary .title {font-size:13.5px;}
+      .map-control-stack .route-summary .subtitle {font-size:10px;}
+      .count-long {display:none;} .count-short {display:inline;}
+      .map-control-stack .route-summary .header-actions {width:auto;}
+      .map-control-stack .viewer-day-wrap {flex-direction:row;gap:2px;align-items:center;}
+      .viewer-day-wrap .day-step {width:22px;height:28px;font-size:19px;}
+      .date-toggle {min-width:99px;height:28px;padding:3px 5px;font-size:10.5px!important;}
+      .map-control-stack .replay-controls {padding:7px 10px 9px;}
+      .map-control-stack .replay-heading {flex-wrap:nowrap;gap:5px;}
+      .map-control-stack .replay-label {font-size:11px;gap:4px;white-space:nowrap;}
+      .map-control-stack #replay-time {font-size:15px;}
+      .map-control-stack .replay-count {font-size:10px;}
+      .map-control-stack .replay-speed-label {flex-direction:column;align-items:center;gap:1px;line-height:1.15;font-size:9px;}
+      .map-control-stack #replay-speed {padding:3px 5px;font-size:11px;}
+      .map-control-stack .replay-range {margin:5px 0 1px;}
+      body.has-route .map-legend {display:none!important;}
+      .leaflet-bottom.leaflet-right {margin-bottom:24px;margin-right:10px;}
+    }
+    @media(max-width:355px) {
+      .map-control-stack .route-summary {padding:8px;}
+      .map-control-stack .route-summary .title {font-size:12.5px;}
+      .map-control-stack .route-summary .subtitle {font-size:9.5px;}
+      .viewer-day-wrap .day-step {width:18px;}
+      .date-toggle {min-width:92px;padding:3px;font-size:10px!important;}
+      .map-control-stack .replay-label {font-size:10px;gap:3px;}
+      .map-control-stack #replay-time {font-size:14px;}
+      .map-control-stack .replay-count {font-size:9px;}
+      .map-control-stack .replay-actions {gap:3px;}
+      .map-control-stack .replay-actions button {min-width:28px;}
+      .map-control-stack .replay-actions .replay-toggle {min-width:78px;padding:0 6px;font-size:11px;}
+    }
   </style>
 </head>
 <body>
@@ -341,7 +400,7 @@
   <header class="route-summary" aria-live="polite">
     <div>
       <div class="title" id="route-title">Supervisor</div>
-      <div class="subtitle" id="route-subtitle"></div>
+      <span class="subtitle" id="route-subtitle"><span id="route-position-count"></span><span class="count-long"> posições GPS</span><span class="count-short"> GPS</span></span>
     </div>
     <div class="header-actions">
       <nav class="viewer-day-wrap" aria-label="Navegar pelos dias com GPS">
@@ -405,12 +464,12 @@
     <p class="fineprint">O CSV permanece no navegador. O mapa não inclui IDs de dispositivos, nomes reais nem informações de bateria. As coordenadas ainda podem revelar locais visitados.</p>
   </section>
   <div class="map-legend" aria-label="Legenda do mapa">
-    <span class="legend-item" data-reference-hour="8"><span class="legend-time">08</span>08:00</span>
+    <div class="legend-row"><span class="legend-item" data-reference-hour="8"><span class="legend-time">08</span>08:00</span>
     <span class="legend-item" data-reference-hour="13"><span class="legend-time">13</span>13:00</span>
     <span class="legend-item" data-reference-hour="17"><span class="legend-time">17</span>17:00</span>
-    <span class="legend-item"><span class="legend-dot fix"></span>Posição GPS</span>
+    </div><div class="legend-row"><span class="legend-item"><span class="legend-dot fix"></span>Posição GPS</span>
     <span class="legend-item direction"><span class="legend-direction">➜</span>Sentido</span>
-    <span class="legend-item"><span class="legend-line"></span>Rota</span>
+    <span class="legend-item"><span class="legend-line"></span>Rota</span></div>
   </div>
   <div id="viewer-status" class="viewer-status" role="status" hidden></div>
   <div id="base-map-notice" class="base-map-notice" role="status" hidden></div>
@@ -560,7 +619,7 @@
           if(!ready) showBasemapNotice('Não foi possível carregar o mapa base. Verifique a conexão ou abra o arquivo no Chrome.');
         });
       }
-      L.control.zoom({position:'topright'}).addTo(map);
+      L.control.zoom({position:'bottomright'}).addTo(map);
       for(const [name,z] of [['routePane',410],['directionPane',420],['fixPane',440],['timePane',500],['replayPane',520]]) {
         const pane=map.createPane(name);pane.style.zIndex=z;
       }
@@ -583,7 +642,7 @@
       if(!Array.isArray(positions)||positions.length<2)return;
       document.body.classList.add('has-route');
       el('route-title').textContent=isViewer?'Supervisor':`${current.alias} • ${localDateLabel(current.date)}`;
-      el('route-subtitle').textContent=`${positions.length} posições GPS · horário de São Paulo`;
+      el('route-position-count').textContent=new Intl.NumberFormat('pt-BR').format(positions.length);
       document.title=`${isViewer?'Supervisor':current.alias} • ${localDateLabel(current.date)}`;
       line=L.polyline(positions.map(coords),{color:'#1268d8',weight:9,opacity:.97,lineJoin:'round',lineCap:'round',pane:'routePane'}).addTo(map);
       line.on('click', e=>{
