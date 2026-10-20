@@ -637,7 +637,7 @@
       arrowLayer=L.layerGroup().addTo(map);
       referenceLayer=L.layerGroup().addTo(map);
       stopLayer=L.layerGroup().addTo(map);
-      map.on('zoomend moveend resize',()=>{if(current){refreshDots();refreshArrows();refreshReferenceMarkers();refreshStopMarkers();}});
+      map.on('zoomend moveend resize',()=>{if(current){refreshDots();refreshArrows();refreshStopMarkers();refreshReferenceMarkers();}});
     }
     function renderRoute(route, {fit=true}={}) {
       pauseReplay();
@@ -679,7 +679,7 @@
         referenceMarkers.push({ref,marker,connector});
       }
       if(fit)map.fitBounds(line.getBounds(),{paddingTopLeft:[55,100],paddingBottomRight:[60,75],maxZoom:15});
-      refreshReferenceMarkers();refreshDots();refreshArrows();
+      refreshDots();refreshArrows();
       renderStops(loadedStops.get(route.date)||[]);
       // Keep the initial map uncluttered. The replay marker appears when the
       // viewer plays, steps or scrubs, without obscuring an 08:00 reference marker.
@@ -712,6 +712,7 @@
         stopMarkers.push({marker,stop});
       }
       refreshStopMarkers();
+      refreshReferenceMarkers();
     }
     function layoutStopBadgeCenters(origins,viewport){
       // Visual layout only. True GPS coordinates stay on the stop records.
@@ -782,10 +783,42 @@
         return {...chosen,moved:Math.hypot(chosen.x-x,chosen.y-y)>1};
       });
     }
+    function nudgeTimeBadgesFromStops(placements,stops,viewport) {
+      // Stop locations win. Keep time badges near their prior anti-collision positions.
+      const timeRadius=14.5,stopRadius=12,clearance=4,edge=8;
+      const spacing=timeRadius+stopRadius+clearance;
+      const candidates=[[0,0]];
+      for(const radius of [34,42,52,64]) {
+        for(let i=0;i<12;i++) {
+          const angle=i*Math.PI/6;
+          candidates.push([Math.cos(angle)*radius,Math.sin(angle)*radius]);
+        }
+      }
+      const used=[];
+      return placements.map(origin=>{
+        if(origin.x<0||origin.y<0||origin.x>viewport.x||origin.y>viewport.y)return origin;
+        let chosen=null;
+        for(const [dx,dy] of candidates) {
+          const pos={x:origin.x+dx,y:origin.y+dy};
+          if(pos.x<timeRadius+edge||pos.y<timeRadius+edge||
+             pos.x>viewport.x-timeRadius-edge||pos.y>viewport.y-timeRadius-edge)continue;
+          if(stops.some(p=>Math.hypot(p.x-pos.x,p.y-pos.y)<spacing))continue;
+          if(used.some(p=>Math.hypot(p.x-pos.x,p.y-pos.y)<34))continue;
+          chosen=pos;break;
+        }
+        const result=chosen||origin;
+        used.push(result);
+        return {...result,moved:origin.moved||Math.hypot(result.x-origin.x,result.y-origin.y)>1};
+      });
+    }
     function refreshReferenceMarkers() {
       if(!map || !referenceMarkers.length)return;
       const origins=referenceMarkers.map(({ref})=>map.latLngToContainerPoint(coords(ref.point)));
-      const placements=layoutReferenceBadgeCenters(origins,map.getSize());
+      const initial=layoutReferenceBadgeCenters(origins,map.getSize());
+      const stopCenters=map.getZoom()>=16?stopMarkers.map(({marker})=>
+        map.latLngToContainerPoint(marker.getLatLng())):[];
+      const placements=stopCenters.length?
+        nudgeTimeBadgesFromStops(initial,stopCenters,map.getSize()):initial;
       referenceMarkers.forEach(({ref,marker,connector},i)=>{
         const actual=L.latLng(...coords(ref.point));
         const place=placements[i];
