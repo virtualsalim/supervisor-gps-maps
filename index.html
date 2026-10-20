@@ -503,6 +503,7 @@
     const loadedDays=new Map();
     const loadedStops=new Map();
     let selectedStopMarker=null;
+    let stopMarkers=[];
     let availableViewerDays=[],selectedViewerDay=null,calendarMonth='',viewerFetchBusy=false;
     const fmtCalendarMonth=new Intl.DateTimeFormat('pt-BR',{month:'long',year:'numeric',timeZone:'UTC'});
 
@@ -636,12 +637,12 @@
       arrowLayer=L.layerGroup().addTo(map);
       referenceLayer=L.layerGroup().addTo(map);
       stopLayer=L.layerGroup().addTo(map);
-      map.on('zoomend moveend resize',()=>{if(current){refreshDots();refreshArrows();refreshReferenceMarkers();}});
+      map.on('zoomend moveend resize',()=>{if(current){refreshDots();refreshArrows();refreshReferenceMarkers();refreshStopMarkers();}});
     }
     function renderRoute(route, {fit=true}={}) {
       pauseReplay();
       ensureMap();if(!map)return;
-      if(line)line.remove();dotLayer.clearLayers();arrowLayer.clearLayers();referenceLayer.clearLayers();referenceMarkers=[];stopLayer.clearLayers();selectedStopMarker=null;
+      if(line)line.remove();dotLayer.clearLayers();arrowLayer.clearLayers();referenceLayer.clearLayers();referenceMarkers=[];stopLayer.clearLayers();selectedStopMarker=null;stopMarkers=[];
       if(replayMarker){replayMarker.remove();replayMarker=null;}
       current=route;
       const positions=current.positions;
@@ -708,7 +709,46 @@
           marker.bindPopup(detail,{offset:[0,-10]}).openPopup();
         });
         marker.addTo(stopLayer);
+        stopMarkers.push({marker,stop});
       }
+      refreshStopMarkers();
+    }
+    function layoutStopBadgeCenters(origins,viewport){
+      // Visual layout only. True GPS coordinates stay on the stop records.
+      const half=12, edge=6, spacing=27, used=[];
+      const choices=[[0,0]];
+      for(const radius of [27,38,54,76,96]){
+        for(let i=0;i<12;i++){
+          const a=i*Math.PI/6;
+          choices.push([Math.round(radius*Math.cos(a)),Math.round(radius*Math.sin(a))]);
+        }
+      }
+      return origins.map(({x,y})=>{
+        const inside=p=>p.x>=half+edge&&p.x<=viewport.x-half-edge&&p.y>=half+edge&&p.y<=viewport.y-half-edge;
+        let choice=null;
+        for(const [dx,dy] of choices){
+          const p={x:x+dx,y:y+dy};
+          if(inside(p)&&used.every(q=>Math.hypot(p.x-q.x,p.y-q.y)>=spacing)){choice=p;break;}
+        }
+        if(!choice){
+          const available=choices.map(([dx,dy])=>({x:x+dx,y:y+dy})).filter(inside);
+          available.sort((a,b)=>{
+            const penalty=p=>used.reduce((sum,q)=>sum+Math.max(0,spacing-Math.hypot(p.x-q.x,p.y-q.y)),0);
+            return penalty(a)-penalty(b)||Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y);
+          });
+          choice=available[0]||{x,y};
+        }
+        used.push(choice);
+        return choice;
+      });
+    }
+    function refreshStopMarkers(){
+      if(!map||!stopMarkers.length)return;
+      const layout=layoutStopBadgeCenters(stopMarkers.map(({stop})=>map.latLngToContainerPoint([stop.lat,stop.lon])),map.getSize());
+      stopMarkers.forEach(({marker},i)=>{
+        const p=layout[i];
+        marker.setLatLng(map.containerPointToLatLng(L.point(p.x,p.y)));
+      });
     }
     function layoutReferenceBadgeCenters(origins, viewport) {
       // Adapted from Clarentia's screen-space GPS badge collision layout.
