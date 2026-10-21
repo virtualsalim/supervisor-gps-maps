@@ -61,7 +61,11 @@ jobs:
           assert "capture_pageview:false" in page
           assert "autocapture:false" in page
           assert "disable_session_recording:true" in page
-          assert "ph.capture('$pageview',{app:'supervisor_gps_map'})" in page
+          assert "ph.capture('$pageview',{app:'supervisor_gps_map',visitor_type:gpsMapVisitorType})" in page
+          assert "ph.register({app:'supervisor_gps_map',visitor_type:gpsMapVisitorType})" in page
+          assert "localStorage.setItem(key, 'true')" in page
+          assert "localStorage.removeItem(key)" in page
+          assert "visitor_type:gpsMapVisitorType,gps_date:date" in page
           assert "gps_map_date_viewed" in page
           assert "gps_date:date" in page
           print('GPS analytics scope and event configuration verified.')
