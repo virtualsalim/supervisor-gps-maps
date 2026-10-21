@@ -51,6 +51,21 @@ jobs:
           assert 'function layoutReferenceBadgeCenters' in html
           print('Verified Supervisor display label and collision layout.')
           PY
+      - name: Verify isolated GPS visitor tracking
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          page = Path('index.html').read_text(encoding='utf-8')
+          assert "location.hostname === 'virtualsalim.github.io'" in page
+          assert "capture_pageleave:true" in page
+          assert "capture_pageview:false" in page
+          assert "autocapture:false" in page
+          assert "disable_session_recording:true" in page
+          assert "ph.capture('$pageview',{app:'supervisor_gps_map'})" in page
+          assert "gps_map_date_viewed" in page
+          assert "gps_date:date" in page
+          print('GPS analytics scope and event configuration verified.')
+          PY
       - name: Test stop detection rules
         run: node --test scripts/gps-stops.test.mjs
       - name: Generate GPS stop overlays from published daily positions
