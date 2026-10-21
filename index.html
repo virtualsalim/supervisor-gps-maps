@@ -397,6 +397,24 @@
     }
   </style>
   <script>
+    // Public GPS viewer only: browser-local test designation, never a tracking opt-out.
+    // The link changes classification before the first $pageview; all events remain available in PostHog.
+    const gpsMapVisitorType = (() => {
+      const key = 'gps_map_internal';
+      const params = new URLSearchParams(location.search);
+      const mode = params.get('internal');
+      try {
+        if (mode === '1') localStorage.setItem(key, 'true');
+        else if (mode === '0') localStorage.removeItem(key);
+      } catch (_) { /* Storage-blocked browsers are treated as public. */ }
+      if (mode === '1' || mode === '0') {
+        params.delete('internal');
+        const qs = params.toString();
+        history.replaceState(history.state, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+      }
+      try { return localStorage.getItem(key) === 'true' ? 'internal' : 'public'; }
+      catch (_) { return mode === '1' ? 'internal' : 'public'; }
+    })();
     // Minimal anonymous web analytics on the hosted GPS viewer only.
     if (location.hostname === 'virtualsalim.github.io' && location.pathname.startsWith('/supervisor-gps-maps/')) {
       !function(t,e){var o,n,p,r;e.__SV||(window.posthog&&window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}p||((p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",p.onerror=function(){p=null},(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r));var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],Object.defineProperty(u,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e}}),Object.defineProperty(u.people,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(){return u.toString(1)+".people (stub)"}}),o="init capture register register_once register_for_session unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group identify setPersonProperties setPersonPropertiesForFlags resetPersonPropertiesForFlags resetGroups onFeatureFlags addFeatureFlagsHandler onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRender getNextStep".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
@@ -409,8 +427,8 @@
         disable_session_recording:true,
         advanced_disable_flags:true,
         loaded:function(ph) {
-          ph.register({app:'supervisor_gps_map'});
-          ph.capture('$pageview',{app:'supervisor_gps_map'});
+          ph.register({app:'supervisor_gps_map',visitor_type:gpsMapVisitorType});
+          ph.capture('$pageview',{app:'supervisor_gps_map',visitor_type:gpsMapVisitorType});
         }
       });
     }
@@ -1070,7 +1088,7 @@
         selectedViewerDay=date;
         // Date-only analytics: do not transmit GPS coordinates or map details.
         if(window.posthog && typeof window.posthog.capture === 'function')
-          window.posthog.capture('gps_map_date_viewed',{app:'supervisor_gps_map',gps_date:date});
+          window.posthog.capture('gps_map_date_viewed',{app:'supervisor_gps_map',visitor_type:gpsMapVisitorType,gps_date:date});
         // Independent derived GPS stop file; a missing file never blocks the route.
         try {
           let stops=loadedStops.get(date);
