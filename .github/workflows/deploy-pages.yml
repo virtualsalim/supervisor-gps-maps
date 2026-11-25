@@ -78,5 +78,11 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
         with:
           path: '.'
+      # GitHub's artifact list can lag behind a successful upload. A deploy
+      # attempted immediately afterward intermittently sees zero artifacts.
+      # Use a fresh workflow run rather than rerunning the same run, which can
+      # leave multiple github-pages artifacts and fail differently.
+      - name: Wait for Pages artifact indexing
+        run: sleep 30
       - uses: actions/deploy-pages@v4
         id: deployment
